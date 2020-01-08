@@ -243,10 +243,10 @@ namespace EventStore.Core.Services.PersistentSubscription {
 					: DateTime.UtcNow + _settings.MessageTimeout);
 		}
 
-		public void AddClient(Guid correlationId, Guid connectionId, string connectionName, IEnvelope envelope, int maxInFlight, string user,
+		public void AddClient(Guid correlationId, Guid connectionId, string connectionName, Func<bool> isConnectionClosed, IEnvelope envelope, int maxInFlight, string user,
 			string @from) {
 			lock (_lock) {
-				var client = new PersistentSubscriptionClient(correlationId, connectionId, connectionName, envelope, maxInFlight, user,
+				var client = new PersistentSubscriptionClient(correlationId, connectionId, connectionName, isConnectionClosed, envelope, maxInFlight, user,
 					@from, _totalTimeWatch, _settings.ExtraStatistics);
 				_pushClients.AddClient(client);
 				TryPushingMessagesToClients();
@@ -529,6 +529,10 @@ namespace EventStore.Core.Services.PersistentSubscription {
 		public void Delete() {
 			_settings.CheckpointWriter.BeginDelete(x => { });
 			_settings.MessageParker.BeginDelete(x => { });
+		}
+
+		public void RemoveDeadConnections() {
+			_pushClients.RemoveDeadConnections();
 		}
 	}
 }

@@ -445,7 +445,7 @@ namespace EventStore.Core.Services.PersistentSubscription {
 					lastEventNumber);
 			message.Envelope.ReplyWith(subscribedMessage);
 			var name = message.User == null ? "anonymous" : message.User.Identity.Name;
-			subscription.AddClient(message.CorrelationId, message.ConnectionId, message.ConnectionName, message.Envelope,
+			subscription.AddClient(message.CorrelationId, message.ConnectionId, message.ConnectionName, message.IsConnectionClosed, message.Envelope,
 				message.AllowedInFlightMessages, name, message.From);
 		}
 
@@ -760,6 +760,7 @@ namespace EventStore.Core.Services.PersistentSubscription {
 			if (!_handleTick) return;
 			try {
 				WakeSubscriptions();
+				RemoveDeadConnections();
 			} finally {
 				_bus.Publish(_tickRequestMessage);
 			}
@@ -770,6 +771,12 @@ namespace EventStore.Core.Services.PersistentSubscription {
 
 			foreach (var subscription in _subscriptionsById.Values) {
 				subscription.NotifyClockTick(now);
+			}
+		}
+
+		private void RemoveDeadConnections() {
+			foreach (var subscription in _subscriptionsById.Values) {
+				subscription.RemoveDeadConnections();
 			}
 		}
 

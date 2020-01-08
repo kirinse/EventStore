@@ -649,7 +649,7 @@ namespace EventStore.Core.Services.Transport.Tcp {
 			var dto = package.Data.Deserialize<TcpClientMessageDto.ConnectToPersistentSubscription>();
 			if (dto == null) return null;
 			return new ClientMessage.ConnectToPersistentSubscription(Guid.NewGuid(), package.CorrelationId, envelope,
-				connection.ConnectionId, connection.ClientConnectionName, dto.SubscriptionId, dto.EventStreamId, dto.AllowedInFlightMessages,
+				connection.ConnectionId, connection.ClientConnectionName, () => connection.IsClosed, dto.SubscriptionId, dto.EventStreamId, dto.AllowedInFlightMessages,
 				connection.RemoteEndPoint.ToString(), user);
 		}
 

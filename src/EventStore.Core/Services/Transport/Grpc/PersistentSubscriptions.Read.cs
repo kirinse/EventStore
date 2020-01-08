@@ -167,7 +167,7 @@ namespace EventStore.Core.Services.Transport.Grpc {
 				_tokenRegistration = cancellationToken.Register(_disposedTokenSource.Dispose);
 
 				queue.Publish(new ClientMessage.ConnectToPersistentSubscription(correlationId, correlationId,
-					new CallbackEnvelope(OnMessage), correlationId, connectionName, groupName, streamName,
+					new CallbackEnvelope(OnMessage), correlationId, connectionName, () => cancellationToken.IsCancellationRequested, groupName, streamName,
 					bufferSize,
 					string.Empty, user));
 

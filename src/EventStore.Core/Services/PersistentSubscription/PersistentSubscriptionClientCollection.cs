@@ -60,5 +60,13 @@ namespace EventStore.Core.Services.PersistentSubscription {
 				client.RemoveFromProcessing(processedEventIds);
 			}
 		}
+
+		public void RemoveDeadConnections() {
+			foreach (var client in _hash.Values) {
+				if (client.IsConnectionClosed()) {
+					RemoveClientByCorrelationId(client.CorrelationId, false);
+				}
+			}
+		}
 	}
 }

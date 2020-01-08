@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EventStore.Common.Log;
 using EventStore.Core.Data;
 using EventStore.Core.Services.PersistentSubscription.ConsumerStrategy;
 
@@ -11,6 +12,7 @@ namespace EventStore.Core.Services.PersistentSubscription {
 		private readonly Dictionary<Guid, PersistentSubscriptionClient> _hash =
 			new Dictionary<Guid, PersistentSubscriptionClient>();
 
+		private static readonly ILogger Log = LogManager.GetLoggerFor<PersistentSubscriptionClientCollection>();
 		public int Count {
 			get { return _hash.Count; }
 		}
@@ -64,6 +66,7 @@ namespace EventStore.Core.Services.PersistentSubscription {
 		public void RemoveDeadConnections() {
 			foreach (var client in _hash.Values) {
 				if (client.IsConnectionClosed()) {
+					Log.Debug("Removing dead connection to persistent subscription [{clientConnectionName}/{connectionId:B}/{correlationId:B}]", client.ConnectionName, client.ConnectionId, client.CorrelationId);
 					RemoveClientByCorrelationId(client.CorrelationId, false);
 				}
 			}

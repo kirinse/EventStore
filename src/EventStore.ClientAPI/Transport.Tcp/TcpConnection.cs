@@ -66,6 +66,7 @@ namespace EventStore.ClientAPI.Transport.Tcp {
 		private readonly object _sendLock = new object();
 		private bool _isSending;
 		private volatile int _closed;
+		private int _dispatchingData; //states: 0 - not dispatching data, 1 - dispatching data, 2 - final state, data should not be dispatched after reaching this state
 
 		private Action<ITcpConnection, IEnumerable<ArraySegment<byte>>> _receiveCallback;
 		private readonly Action<ITcpConnection, SocketError> _onConnectionClosed;
@@ -252,7 +253,13 @@ namespace EventStore.ClientAPI.Transport.Tcp {
 				_receiveCallback = null;
 			}
 
-			callback(this, res);
+			if (Interlocked.CompareExchange(ref _dispatchingData, 1, 0) == 0) {
+				try {
+					callback(this, res);
+				} finally {
+					Interlocked.Exchange(ref _dispatchingData, 0);
+				}
+			}
 
 			int bytes = 0;
 			for (int i = 0, n = res.Count; i < n; ++i) {
@@ -271,6 +278,10 @@ namespace EventStore.ClientAPI.Transport.Tcp {
 			if (Interlocked.CompareExchange(ref _closed, 1, 0) != 0)
 				return;
 #pragma warning restore 420
+
+			SpinWait spinWait = new SpinWait();
+			while(Interlocked.CompareExchange(ref _dispatchingData, 2, 0) != 0)
+				spinWait.SpinOnce();
 
 			NotifyClosed();
 

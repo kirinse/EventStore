@@ -93,6 +93,7 @@ namespace EventStore.Transport.Tcp {
 		private bool _isSending;
 		private int _receiveHandling;
 		private int _isClosed;
+		private int _dispatchingData; //states: 0 - not dispatching data, 1 - dispatching data, 2 - final state, data should not be dispatched after reaching this state
 
 		private Action<ITcpConnection, IEnumerable<ArraySegment<byte>>> _receiveCallback;
 
@@ -459,7 +460,13 @@ namespace EventStore.Transport.Tcp {
 						data[i] = new ArraySegment<byte>(d.Buf.Array, d.Buf.Offset, d.DataLen);
 					}
 
-					callback(this, data);
+					if (Interlocked.CompareExchange(ref _dispatchingData, 1, 0) == 0) {
+						try {
+							callback(this, data);
+						} finally {
+							Interlocked.Exchange(ref _dispatchingData, 0);
+						}
+					}
 
 					for (int i = 0, n = res.Count; i < n; ++i) {
 						TcpConnection.BufferManager.CheckIn(res[i].Buf); // dispose buffers
@@ -481,6 +488,10 @@ namespace EventStore.Transport.Tcp {
 		private void CloseInternal(SocketError socketError, string reason) {
 			if (Interlocked.CompareExchange(ref _isClosed, 1, 0) != 0)
 				return;
+
+			SpinWait spinWait = new SpinWait();
+			while(Interlocked.CompareExchange(ref _dispatchingData, 2, 0) != 0)
+				spinWait.SpinOnce();
 
 			NotifyClosed();
 
